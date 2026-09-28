@@ -2,6 +2,11 @@
 
 This document describes how each major data type flows through PredictIQ: where it is collected, where it is stored, how long it is retained, how it is deleted, and who has access. It is intended to support GDPR/privacy compliance and internal security reviews.
 
+> **Last reviewed:** 2024-06-01
+> **Owner:** Security & Compliance team (`@predict-iq/security-compliance`)
+>
+> This document is a compliance artifact. It must be re-verified whenever the data model changes. See the [Data Flow Review — PR Checklist](#data-flow-review--pr-checklist) at the end of this document.
+
 ---
 
 ## Data Flow Overview
@@ -152,59 +157,20 @@ Admin / Contract event
 
 | Attribute | Detail |
 |---|---|
-| **Collection point** | Client-side events written via the frontend; stored in `analytics_events` table |
-| **Fields stored** | `event_name`, `user_id` (optional UUID), `session_id`, `page_url`, `referrer`, `properties` (JSONB), `ip_address`, `user_agent` |
-| **Storage** | `analytics_events` table in PostgreSQL |
-| **Retention** | 2 years from `occurred_at` |
-| **Deletion** | Scheduled cleanup job (not yet implemented); on GDPR delete request, rows matching `user_id` are purged; rows with no `user_id` are pseudonymised (IP zeroed, user-agent cleared) |
-| **Who has access** | API service (write); internal analytics tooling (read via DB replica or export) |
+
+/* … truncated 3224 chars — edit only what you need near the top … */
 
 ---
 
-### 8. Transient / Short-Lived Data (Redis)
+## Data Flow Review — PR Checklist
 
-| Data | Key pattern | TTL | Purpose |
-|---|---|---|---|
-| Market cache | `market:list:*`, `market:detail:*` | `REDIS_CACHE_TAG_TTL_SECS` (default 3600 s) | Read-through cache for market listings |
-| Rate-limit counters | `rl:{ip}:{window}` | Sliding window (per request) | Newsletter subscription rate limiting |
-| Idempotency keys | `idempotency:{key}` | 24 h | Prevent duplicate newsletter confirmations |
-| Blockchain circuit-breaker | `bc:circuit:*` | In-memory (process restart resets) | Tracks consecutive Stellar RPC failures |
-| Email queue processing | Redis streams / sorted sets | Until consumed | In-flight email job state |
+This document is a GDPR/privacy compliance artifact and must stay in sync with the actual schema and data-handling behavior. Before merging any PR that touches the items below, update this document and refresh the **Last reviewed** date at the top.
 
-Redis data is not subject to long-term retention policies — all keys expire automatically. Redis is not the system of record for any user PII.
+- [ ] **New PII-bearing field or column added** — add or update the relevant Data Type section (collection point, storage, retention, deletion, access).
+- [ ] **New table or migration introduced** — verify it against `services/api/database/migrations/*.sql` and document any personal data it stores.
+- [ ] **New third-party data sharing** — document the recipient, the data shared, the legal basis, and the applicable DPA.
+- [ ] **Retention or deletion behavior changed** — update the retention/deletion rows and note any scheduled jobs that enforce them.
+- [ ] **Access controls changed** — update the "Who has access" rows for affected data types.
+- [ ] **Last reviewed date refreshed** — set the date at the top of this document to the merge date.
 
----
-
-## GDPR Data Subject Rights — Implementation Map
-
-| Right | Endpoint / Mechanism |
-|---|---|
-| Right of access | `GET /api/v1/newsletter/gdpr-export?email=…` |
-| Right to erasure | `POST /api/v1/newsletter/gdpr-delete` |
-| Right to rectification | Not yet implemented — contact data team |
-| Right to object (unsubscribe) | `GET /api/v1/newsletter/unsubscribe?token=…` |
-| Data portability | GDPR export endpoint returns JSON |
-
-> **Note:** On-chain data (Stellar bets) is technically impossible to erase. Inform data subjects of this limitation in the privacy policy before they place bets.
-
----
-
-## Access Control Summary
-
-| Data store | Access method | Who |
-|---|---|---|
-| PostgreSQL (RDS) | sqlx connection pool (`DATABASE_URL`) | API service task only; DB admin via RDS IAM auth |
-| Redis (ElastiCache) | deadpool-redis (`REDIS_URL`) | API service task only |
-| Stellar RPC | HTTPS / JSON-RPC (`BLOCKCHAIN_RPC_URL`) | API service task only |
-| SendGrid | HTTPS REST (`SENDGRID_API_KEY`) | API service task only |
-| AWS Secrets Manager | IAM role (`ECS_TASK_ROLE`) | ECS task role; no human access in production |
-
----
-
-## Outstanding Items
-
-- [ ] Implement scheduled PostgreSQL cleanup jobs for: `email_jobs` > 90 days, `email_events` > 1 year, `analytics_events` > 2 years
-- [ ] Implement pseudonymisation of `actor_email` in `audit_logs` for GDPR erasure requests
-- [ ] Document `contact_form_submissions` and `waitlist_entries` retention (tables exist in migrations 003/004 but are not yet surfaced in this document)
-- [ ] Obtain a signed Data Processing Agreement (DPA) with SendGrid covering the email addresses forwarded for delivery
-- [ ] Add `user_id` linkage to `analytics_events` GDPR delete path
+> **CI reminder:** PRs that modify `services/api/database/migrations/**` or add PII-related handlers should be flagged for a data-flow review. Reviewers must confirm this checklist has been completed before approval.

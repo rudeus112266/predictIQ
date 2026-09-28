@@ -151,17 +151,40 @@ pub enum ErrorCode {
     /// The provided deadline is in the past or otherwise invalid.
     InvalidDeadline = 148,
 
+    /// No pending ownership transfer exists for the given address.
     PendingTransferNotFound = 149,
+
+    /// The caller is not the pending owner and cannot accept ownership.
     NotPendingOwner = 150,
+
+    /// The token is frozen and cannot be transferred or used.
     TokenFrozen = 151,
+
+    /// The migration payload failed validation and cannot be applied.
     MigrationValidationError = 152,
+
+    /// The asset has been clawed back and is no longer available to the holder.
     AssetClawedBack = 153,
+
+    /// An arithmetic operation overflowed the allowed numeric range.
     ArithmeticOverflow = 154,
+
+    /// The caller has already claimed the reward for this market.
     AlreadyClaimed = 155,
+
+    /// There are no winnings available to claim for this market.
     NoWinnings = 156,
+
+    /// The provided referrer address is invalid or not eligible.
     InvalidReferrer = 157,
+
+    /// The resolution deadline for this market has passed.
     ResolutionDeadlinePassed = 158,
+
+    /// An arithmetic operation overflowed the allowed numeric range.
     Overflow = 159,
+
+    /// The provided time range is invalid (e.g. start is after end).
     InvalidTimeRange = 160,
 
     /// The removal target is not permitted to vote on their own removal proposal.

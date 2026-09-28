@@ -10,6 +10,7 @@ Thank you for your interest in contributing! This guide covers everything you ne
 - [Pull Request Process](#pull-request-process)
 - [Running Tests](#running-tests)
 - [Code Style](#code-style)
+- [Security](#security)
 
 ---
 
@@ -306,117 +307,20 @@ that at minimum covers:
 ## Minimum Supported Rust Version (MSRV)
 
 The `services/api` crate declares a `rust-version` field in its `Cargo.toml`.
-This is the **oldest** Rust toolchain version the crate is guaranteed to compile on.
-
-### Current MSRV
-
-| Crate | MSRV |
-|-------|------|
-| `predictiq-api` (`services/api`) | **1.75.0** |
-
-### Policy
-
-- The MSRV is set to the version required by the most-restrictive direct dependency
-  (currently `axum 0.7`, `sqlx 0.8`, and `tower-http 0.6`, all of which require ≥ 1.75).
-- Bumping the MSRV is a **semver-minor** change and must be documented in `CHANGELOG.md`
-  via a `chore(api): bump MSRV to X.Y.Z` commit.
-- A dedicated CI job (`.github/workflows/msrv.yml`) installs the declared MSRV toolchain
-  using `rustup` and runs `cargo check` + `cargo build --release` against it on every PR
-  that touches `services/api/`.
-- To verify the MSRV locally:
-
-  ```bash
-  rustup toolchain install 1.75
-  rustup run 1.75 cargo check --manifest-path services/api/Cargo.toml
-  ```
+This is the **oldest** Rust toolchain version the c
 
 ---
 
-## Code Style
+## Security
 
-### Rust
+Please **do not** report security vulnerabilities through public GitHub issues,
+discussions, or pull requests.
 
-- Follow `rustfmt` defaults — run `cargo fmt` before committing.
-- Lint with `cargo clippy -- -D warnings`.
+Instead, report them privately via **GitHub Security Advisories** for this
+repository:
 
-### TypeScript / JavaScript
+- https://github.com/solutions-plug/predictIQ/security/advisories/new
 
-- ESLint and Prettier are configured in the `frontend/` directory.
-- Run `npm run lint` and `npm run format` before committing.
-
-### YAML / Markdown
-
-- Keep line length reasonable (80–100 characters).
-- Use 2-space indentation for YAML.
-
----
-
-## Branch Protection Rules
-
-The `main` branch is protected. The following rules are enforced:
-
-- **Pull request required** — direct pushes to `main` are not allowed; all changes must go through a PR.
-- **CI must pass** — all status checks in `.github/workflows/` must succeed before a PR can be merged.
-- **At least 1 approval required** — a PR must receive at least one approving review from a team member.
-- **No force pushes** — `git push --force` to `main` is disabled.
-- **No branch deletion** — `main` cannot be deleted.
-
-These rules are configured in the repository settings under **Settings → Branches → Branch protection rules**.
-
-## Code Ownership
-
-Sensitive paths have designated reviewers defined in [`.github/CODEOWNERS`](.github/CODEOWNERS). GitHub automatically requests a review from the relevant owner when a PR touches those paths.
-
-## Secrets and Environment Variables
-
-- Never commit real secrets or credentials.
-- Copy `services/api/.env.example` to `services/api/.env` and fill in real values locally. The `.env` file is gitignored.
-- All placeholder values in `.env.example` are intentionally empty or clearly fake.
-- Gitleaks runs on every push to detect accidental secret commits (see `.gitleaks.toml`).
-
----
-
-## SAST and Security Tooling
-
-This project enforces security scanning at every stage of the development lifecycle.
-
-### Tools and thresholds
-
-| Tool | Scope | Threshold |
-|------|-------|-----------|
-| [cargo-audit](https://github.com/RustSec/rustsec/tree/main/cargo-audit) | Rust dependencies (contracts + API) | Fails CI on any known CVE |
-| [Semgrep](https://semgrep.dev/) | Rust, Node.js, TypeScript, JavaScript source | Fails CI on `error`-level findings; rulesets: `p/security-audit`, `p/rust`, `p/nodejs`, `p/typescript`, `p/javascript` |
-| [Gitleaks](https://github.com/gitleaks/gitleaks) | Git history and staged changes | Fails CI and pre-push hook on any detected secret |
-| [TruffleHog](https://github.com/trufflesecurity/trufflehog) | Git history (verified secrets only) | Fails CI on verified secrets |
-| [Trivy](https://github.com/aquasecurity/trivy) | Filesystem and container images | Fails CI on `CRITICAL` or `HIGH` findings |
-| [CodeQL](https://codeql.github.com/) | JavaScript, TypeScript, Rust | Fails CI on security-extended queries |
-
-### Local setup
-
-Install and activate the gitleaks pre-push hook to catch secrets before they reach CI:
-
-```bash
-# Install gitleaks (macOS)
-brew install gitleaks
-
-# Or on Linux
-wget https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks_linux_amd64 -O gitleaks
-sudo install gitleaks /usr/local/bin/
-
-# Activate the project hook (run once after cloning)
-git config core.hooksPath .githooks
-```
-
-The hook runs `gitleaks protect --staged` on every `git push`, scanning staged commits against `.gitleaks.toml`. To skip in an emergency (e.g. a false positive you've already triaged):
-
-```bash
-SKIP=gitleaks git push
-```
-
-Custom rules for Stellar keys and API tokens are defined in `.gitleaks.toml`.
-
----
-
-## Questions?
-
-Open an issue or start a discussion on [GitHub](https://github.com/solutions-plug/predictIQ/issues).
+This is the verified, monitored channel for security reports. See
+[`SECURITY.md`](SECURITY.md) for the full disclosure policy and response
+timelines.

@@ -13,13 +13,13 @@ Only the latest release of PredictIQ receives security fixes.
 
 **Please do not open a public GitHub issue for security vulnerabilities.**
 
-Use one of the following channels:
+Use the following channel:
 
-1. **GitHub Private Vulnerability Reporting** (preferred) — click the
-   [Report a vulnerability](../../security/advisories/new) button on the
-   Security tab of this repository.
-2. **Email** — send details to `security@predictiq.io` with the subject line
-   `[SECURITY] <brief description>`.
+**GitHub Private Vulnerability Reporting** — click the
+[Report a vulnerability](../../security/advisories/new) button on the
+Security tab of this repository. This is the only supported reporting
+channel; reports are triaged by the maintainers who watch the repository's
+Security tab.
 
 ### What to include
 

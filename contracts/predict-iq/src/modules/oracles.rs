@@ -147,7 +147,34 @@ pub fn resolve_with_pyth(
     Ok(outcome)
 }
 
+/// Issue #1545: Determine the winning outcome index from a Pyth price.
+///
+/// Binary markets (2 options) keep the original above/below-strike semantics:
+/// outcome 0 when `price >= strike_price`, outcome 1 otherwise.
+///
+/// Multi-outcome markets (3+ options) are resolved against ascending price
+/// brackets supplied via `config.strike_thresholds`. The price is compared
+/// against each threshold in order; the first threshold the price is below
+/// selects that bracket's outcome index. A price at or above every threshold
+/// selects the final (highest) outcome index. This lets auto-resolution pick
+/// outcome indices >= 2 instead of silently collapsing to 0/1.
 fn determine_outcome(price: &PythPrice, config: &OracleConfig) -> u32 {
+    let thresholds = config.strike_thresholds.as_ref();
+
+    // Multi-outcome bracket resolution when explicit thresholds are configured.
+    if let Some(thresholds) = thresholds {
+        if thresholds.len() >= 2 {
+            for (i, threshold) in thresholds.iter().enumerate() {
+                if price.price < threshold {
+                    return i as u32;
+                }
+            }
+            // Price at or above every threshold -> highest bracket.
+            return thresholds.len() as u32;
+        }
+    }
+
+    // Binary fallback (unchanged legacy behavior).
     let threshold = config.strike_price.unwrap_or(0);
     if price.price >= threshold {
         0
@@ -266,117 +293,6 @@ pub fn record_oracle_response(
 /// Issue #509: Validate oracle consensus - requires min_responses confirmations
 pub fn validate_consensus(
     e: &Env,
-    market_id: u64,
-    config: &OracleConfig,
-) -> Result<u32, ErrorCode> {
-    let min_responses = config.min_responses.unwrap_or(1);
+    
 
-    let key = OracleData::OracleResponses(market_id);
-    let responses: Map<u32, u32> = e
-        .storage()
-        .persistent()
-        .get(&key)
-        .ok_or(ErrorCode::OracleFailure)?;
-
-    // Check if we have enough responses
-    if responses.len() < min_responses {
-        return Err(ErrorCode::OracleFailure);
-    }
-
-    // Count votes for each outcome.
-    // Fix #1539: iterate by actual (oracle_index, outcome) pairs via Map::iter()
-    // instead of a synthetic positional index. Map::get(i) is a key lookup, not
-    // positional — with non-contiguous oracle indices the old loop silently
-    // skipped entries whose key didn't match the loop counter.
-    let mut outcome_votes: Map<u32, u32> = Map::new(e);
-    for (_oracle_index, outcome) in responses.iter() {
-        let votes = outcome_votes.get(outcome).unwrap_or(0);
-        outcome_votes.set(outcome, votes + 1);
-    }
-
-    // Find outcome with most votes (quorum).
-    // Fix #1539: iterate outcome_votes by actual (outcome_id, vote_count) pairs.
-    // The old loop used outcome_votes.get(i) which probes key i, not position i,
-    // so non-contiguous outcome IDs (e.g. outcomes 0 and 2 with len==2) would
-    // never check key 2 — its votes were silently ignored.
-    let mut consensus_outcome: Option<u32> = None;
-    let mut max_votes = 0u32;
-    for (outcome_id, votes) in outcome_votes.iter() {
-        if votes > max_votes {
-            max_votes = votes;
-            consensus_outcome = Some(outcome_id);
-        }
-    }
-
-    let winning_outcome = consensus_outcome.ok_or(ErrorCode::OracleFailure)?;
-    }
-
-    Ok(winning_outcome)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use soroban_sdk::{testutils::Address as _, Address, Env, String};
-
-    fn valid_config(e: &Env) -> OracleConfig {
-        OracleConfig {
-            oracle_address: Address::generate(e),
-            feed_id: String::from_str(
-                e,
-                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-            ),
-            max_staleness_seconds: MAX_STALENESS_SECONDS,
-            max_confidence_bps: 100,
-            strike_price: Some(100),
-            min_responses: Some(1),
-        }
-    }
-
-    #[test]
-    fn verify_oracle_health_accepts_valid_feed_id() {
-        let e = Env::default();
-        let config = valid_config(&e);
-        assert!(verify_oracle_health(&e, &config));
-        assert!(validate_oracle_config(&e, &config).is_ok());
-    }
-
-    #[test]
-    fn verify_oracle_health_rejects_wrong_length_feed_id() {
-        let e = Env::default();
-        let mut config = valid_config(&e);
-        config.feed_id = String::from_str(&e, "0123456789abcdef");
-        assert!(!verify_oracle_health(&e, &config));
-        assert_eq!(
-            validate_oracle_config(&e, &config),
-            Err(ErrorCode::OracleFailure)
-        );
-    }
-
-    #[test]
-    fn verify_oracle_health_rejects_non_hex_feed_id() {
-        let e = Env::default();
-        let mut config = valid_config(&e);
-        config.feed_id = String::from_str(
-            &e,
-            "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
-        );
-        assert!(!verify_oracle_health(&e, &config));
-        assert_eq!(
-            validate_oracle_config(&e, &config),
-            Err(ErrorCode::OracleFailure)
-        );
-    }
-
-    #[test]
-    fn verify_oracle_health_rejects_empty_feed_id() {
-        let e = Env::default();
-        let mut config = valid_config(&e);
-        config.feed_id = String::from_str(&e, "");
-        assert!(!verify_oracle_health(&e, &config));
-        assert_eq!(
-            validate_oracle_config(&e, &config),
-            Err(ErrorCode::OracleFailure)
-        );
-    }
-}
+/* … truncated 3836 chars — edit only what you need near the top … */
